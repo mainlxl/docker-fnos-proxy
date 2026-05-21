@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/natefinch/lumberjack.v2"
+	// "gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"log"
 	"net/http"
@@ -24,8 +24,8 @@ var (
 	listenAddr    string
 	tlsCert       string
 	tlsKey        string
-	daemonize     bool
-	logFile       string
+	// daemonize     bool
+	// logFile       string
 	dockerCfgPath string
 )
 
@@ -126,18 +126,36 @@ func main() {
 	flag.StringVar(&listenAddr, "addr", ":5001", "监听地址")
 	flag.StringVar(&tlsCert, "tls-cert", "", "TLS 证书路径")
 	flag.StringVar(&tlsKey, "tls-key", "", "TLS 私钥路径")
-	flag.BoolVar(&daemonize, "d", false, "后台守护进程模式")
-	flag.StringVar(&logFile, "log", "docker-proxy.log", "日志文件路径")
+	// flag.BoolVar(&daemonize, "d", false, "后台守护进程模式")
+	// flag.StringVar(&logFile, "log", "docker-proxy.log", "日志文件路径")
 	flag.StringVar(&dockerCfgPath, "docker-config", "", "Docker config.json 路径（包含上游认证头）")
 	flag.Parse()
 
-	if daemonize {
-		runDaemon()
-		return
+	// 确定配置文件路径：命令行传入 > $HOME/.docker/config.json > /app/config.json
+	if dockerCfgPath == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			p := home + "/.docker/config.json"
+			if _, err := os.Stat(p); err == nil {
+				dockerCfgPath = p
+			}
+		}
 	}
-	if os.Getenv("_DOCKER_PROXY_CHILD") == "1" {
-		setupLogging()
+	if dockerCfgPath == "" {
+		if _, err := os.Stat("/app/config.json"); err == nil {
+			dockerCfgPath = "/app/config.json"
+		}
 	}
+	if dockerCfgPath != "" {
+		log.Printf("使用配置文件: %s", dockerCfgPath)
+	}
+
+	// if daemonize {
+	// 	runDaemon()
+	// 	return
+	// }
+	// if os.Getenv("_DOCKER_PROXY_CHILD") == "1" {
+	// 	setupLogging()
+	// }
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleRequest)
@@ -171,52 +189,50 @@ func main() {
 	}
 }
 
-// --- daemon ---
+// --- daemon (disabled) ---
 
-func runDaemon() {
-	var args []string
-	for _, a := range os.Args[1:] {
-		if a != "-d" {
-			args = append(args, a)
-		}
-	}
-	proc, err := os.StartProcess(os.Args[0], append([]string{os.Args[0]}, args...), &os.ProcAttr{
-		Dir:   ".",
-		Env:   append(os.Environ(), "_DOCKER_PROXY_CHILD=1"),
-		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-		Sys:   &syscall.SysProcAttr{Setsid: true},
-	})
-	if err != nil {
-		log.Fatalf("启动守护进程失败: %v", err)
-	}
-	fmt.Printf("Docker 代理已在后台启动, PID: %d\n", proc.Pid)
-	if f, err := os.Create("docker-proxy.pid"); err == nil {
-		fmt.Fprintf(f, "%d\n", proc.Pid)
-		f.Close()
-	}
-	os.Exit(0)
-}
+// func runDaemon() {
+// 	var args []string
+// 	for _, a := range os.Args[1:] {
+// 		if a != "-d" {
+// 			args = append(args, a)
+// 		}
+// 	}
+// 	proc, err := os.StartProcess(os.Args[0], append([]string{os.Args[0]}, args...), &os.ProcAttr{
+// 		Dir:   ".",
+// 		Env:   append(os.Environ(), "_DOCKER_PROXY_CHILD=1"),
+// 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+// 		Sys:   &syscall.SysProcAttr{Setsid: true},
+// 	})
+// 	if err != nil {
+// 		log.Fatalf("启动守护进程失败: %v", err)
+// 	}
+// 	fmt.Printf("Docker 代理已在后台启动, PID: %d\n", proc.Pid)
+// 	if f, err := os.Create("docker-proxy.pid"); err == nil {
+// 		fmt.Fprintf(f, "%d\n", proc.Pid)
+// 		f.Close()
+// 	}
+// 	os.Exit(0)
+// }
 
-func setupLogging() {
-	lj := &lumberjack.Logger{
-		Filename:   logFile,
-		MaxSize:    100, // MB
-		MaxBackups: 5,
-		MaxAge:     30, // 天
-		Compress:   true,
-	}
-	log.SetOutput(lj)
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	os.Stderr = w
-	go io.Copy(lj, r)
-}
+// func setupLogging() {
+// 	lj := &lumberjack.Logger{
+// 		Filename:   logFile,
+// 		MaxSize:    100,
+// 		MaxBackups: 5,
+// 		MaxAge:     30,
+// 		Compress:   true,
+// 	}
+// 	log.SetOutput(lj)
+// 	r, w, _ := os.Pipe()
+// 	os.Stdout = w
+// 	os.Stderr = w
+// 	go io.Copy(lj, r)
+// }
 
 // --- request router ---
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[%s] %s %s%s", r.RemoteAddr, r.Method, r.URL.Path, qstr(r))
-
 	path := r.URL.Path
 	switch {
 	case path == "/v2/" || path == "/v2":
@@ -247,7 +263,14 @@ func handleV2(w http.ResponseWriter, r *http.Request) {
 	if v2ShortPathRegex.MatchString(path) && !v2LibraryRegex.MatchString(path) {
 		if parts := strings.SplitN(path, "/v2/", 2); len(parts) == 2 {
 			path = "/v2/library/" + parts[1]
-			log.Printf("补全 library/: %s -> %s", r.URL.Path, path)
+		}
+	}
+
+	// 打印拉取镜像信息
+	if repo := extractRepo(path); repo != "" {
+		if strings.Contains(path, "/manifests/") {
+			tag := path[strings.LastIndex(path, "/")+1:]
+			log.Printf("[PULL] %s -> %s:%s", r.RemoteAddr, repo, tag)
 		}
 	}
 
@@ -433,11 +456,4 @@ func flushResponse(w http.ResponseWriter, resp *http.Response) {
 
 func isRedirectCode(code int) bool {
 	return code == 301 || code == 302 || code == 303 || code == 307 || code == 308
-}
-
-func qstr(r *http.Request) string {
-	if r.URL.RawQuery != "" {
-		return "?" + r.URL.RawQuery
-	}
-	return ""
 }
