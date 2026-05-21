@@ -1,9 +1,6 @@
-FROM alpine:3.20 AS certs
-RUN apk --no-cache add ca-certificates
-
 FROM scratch
 
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 WORKDIR /app
 COPY docker-fnos-proxy /app/docker-fnos-proxy
 
