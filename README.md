@@ -1,6 +1,6 @@
 # Docker Registry Proxy
 
-基于 [xiaoshouchen/docker-proxy](https://github.com/xiaoshouchen/docker-proxy) 改造，适配飞牛 NAS 的 Docker 镜像加速服务（docker.fnnas.com）。
+基于 [xiaoshouchen/docker-fnos-proxy](https://github.com/xiaoshouchen/docker-fnos-proxy) 改造，适配飞牛 NAS 的 Docker 镜像加速服务（docker.fnnas.com）。
 
 ## 功能
 
@@ -19,26 +19,26 @@
 
 ```bash
 # 本机编译
-go build -o docker-proxy .
+go build -o docker-fnos-proxy .
 
 # 交叉编译 Linux x86-64
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o docker-proxy-linux-amd64 .
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o docker-fnos-proxy-linux-amd64 .
 ```
 
 ## 使用
 
 ```bash
 # 前台运行
-./docker-proxy -addr :5001
+./docker-fnos-proxy -addr :5001
 
 # 后台运行
-./docker-proxy -d -addr :5001
+./docker-fnos-proxy -d -addr :5001
 
 # 指定配置文件
-./docker-proxy -addr :5001 -docker-config /path/to/config.json
+./docker-fnos-proxy -addr :5001 -docker-config /path/to/config.json
 
 # 停止
-kill $(cat docker-proxy.pid)
+kill $(cat docker-fnos-proxy.pid)
 ```
 
 ### 命令行参数
@@ -49,7 +49,7 @@ kill $(cat docker-proxy.pid)
 | `-tls-cert` | 空 | TLS 证书文件路径（留空则 HTTP） |
 | `-tls-key` | 空 | TLS 私钥文件路径 |
 | `-d` | `false` | 后台守护进程模式 |
-| `-log` | `docker-proxy.log` | 日志文件路径（守护进程模式生效） |
+| `-log` | `docker-fnos-proxy.log` | 日志文件路径（守护进程模式生效） |
 | `-docker-config` | 空 | Docker config.json 路径 |
 
 ### 配置文件查找顺序
