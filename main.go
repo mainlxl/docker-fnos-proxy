@@ -379,7 +379,7 @@ func getToken(repo string) (string, error) {
 		return t, nil
 	}
 
-	tokenURL := fmt.Sprintf("%s/service/token?service=harbor-registry&scope=repository:%s:pull", authURL, repo)
+	tokenURL := fmt.Sprintf("%s/service/token?service=harbor-registry&scope=repository:fnnas/%s:pull", authURL, repo)
 	req, err := http.NewRequest("GET", tokenURL, nil)
 	if err != nil {
 		return "", err
