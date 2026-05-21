@@ -1,7 +1,7 @@
 FROM scratch
 
 WORKDIR /app
-COPY docker-proxy /app/docker-fnos-proxy
+COPY docker-fnos-proxy /app/docker-fnos-proxy
 
 EXPOSE 5001
 
